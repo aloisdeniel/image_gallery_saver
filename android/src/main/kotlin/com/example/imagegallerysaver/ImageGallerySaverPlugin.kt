@@ -30,12 +30,17 @@ class ImageGallerySaverPlugin(private val registrar: Registrar): MethodCallHandl
     if (call.method == "saveImageToGallery") {
       val image = call.arguments as ByteArray
       result.success(saveImageToGallery(BitmapFactory.decodeByteArray(image,0,image.size)))
-    } else {
+    } 
+    else if (call.method == "saveFileToGallery") {
+      val image = call.arguments as String
+      result.success(saveFileToGallery(image))
+    }
+    else {
       result.notImplemented()
     }
   }
 
-  private fun saveImageToGallery(bmp: Bitmap): Boolean {
+  private fun generateFile(): File {
     val context = registrar.activeContext().applicationContext
     val storePath =  Environment.getExternalStorageDirectory().absolutePath + File.separator + getApplicationName()
     val appDir = File(storePath)
@@ -43,7 +48,28 @@ class ImageGallerySaverPlugin(private val registrar: Registrar): MethodCallHandl
       appDir.mkdir()
     }
     val fileName = System.currentTimeMillis().toString() + ".png"
-    val file = File(appDir, fileName)
+    return File(appDir, fileName);
+  }
+
+  private fun saveFileToGallery(filePath: String): Boolean {
+    val context = registrar.activeContext().applicationContext
+     try {
+      val originalFile = File(filePath);
+      val file = generateFile()
+      originalFile.copyTo(file);
+
+      val uri = Uri.fromFile(file)
+      context.sendBroadcast(Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, uri))
+      return true
+    } catch (e: IOException) {
+      e.printStackTrace()
+      return false
+    }
+  }
+
+  private fun saveImageToGallery(bmp: Bitmap): Boolean {
+    val context = registrar.activeContext().applicationContext
+    val file = generateFile()
     try {
       val fos = FileOutputStream(file)
       val isSuccess = bmp.compress(Bitmap.CompressFormat.PNG, 60, fos)
